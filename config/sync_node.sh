@@ -10,6 +10,11 @@ if [ -z "$SRC_FOLDER" ]; then
     exit 1
 fi
 
+if [ -z "$BASE_FOLDER" ]; then
+    echo "Must specify base folder."
+    exit 1
+fi
+
 # Sync code from S3.
 aws s3 sync --delete s3://$S3_BUCKET/$BASE_FOLDER/$SRC_FOLDER /home/hadoop/$BASE_FOLDER
 chmod u+x /home/hadoop/$BASE_FOLDER/config/sync_node.sh

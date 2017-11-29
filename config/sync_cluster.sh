@@ -9,6 +9,11 @@ if [ -z "$SRC_FOLDER" ]; then
     exit 1
 fi
 
+if [ -z "$BASE_FOLDER" ]; then
+    echo "Must specify base folder."
+    exit 1
+fi
+
 # Sync each slave node in parallel.
 echo "Syncing slaves"
 pids=""
