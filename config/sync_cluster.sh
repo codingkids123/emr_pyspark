@@ -2,6 +2,7 @@
 # Sync code to all nodes in EMR cluster.
 
 SRC_FOLDER=$1
+BASE_FOLDER=$2
 
 if [ -z "$SRC_FOLDER" ]; then
     echo "Must specify source folder."
@@ -19,7 +20,7 @@ yarn node -list | grep -v Node |
     while read node; do
         HOST=`echo $node | cut -d ' ' -f 1 | cut -d ':' -f 1`
         echo "Syncing $HOST"
-        ssh -t -o StrictHostKeyChecking=no hadoop@$HOST /home/hadoop/pyspark/config/sync_node.sh $SRC_FOLDER &
+        ssh -t -o StrictHostKeyChecking=no hadoop@$HOST /home/hadoop/$BASE_FOLDER/config/sync_node.sh $SRC_FOLDER $BASE_FOLDER &
         pids="$pids $!"
     done
 
@@ -34,4 +35,4 @@ yarn node -list | grep -v Node |
 }
 
 # Sync master node.
-/home/hadoop/pyspark/config/sync_node.sh $SRC_FOLDER
+/home/hadoop/$BASE_FOLDER/config/sync_node.sh $SRC_FOLDER $BASE_FOLDER

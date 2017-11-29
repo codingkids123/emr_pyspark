@@ -1,25 +1,11 @@
 # Controller program to interact with AWS EMR and run PySpark pipeline.
 
 import argparse
-import os
 from subprocess import call
 
 import boto3
 
-import settings
-
-
-S3_BUCKET = 'your-bucket'
-EC2_KEY_NAME = 'your-key-name'
-EC2_SUBNET_ID = 'your-subnet-id'
-JOBFLOW_ROLE = 'your-jobflow-role'
-SERVICE_ROLE = 'your-service-role'
-
-LOCAL_SRC = '/home/hadoop/pyspark'
-REMOTE_SRC = 's3://%s/pyspark/' % settings.S3_BUCKET
-LOG_URI = 's3://%s/logs' % S3_BUCKET
-EMR_RELEASE_LABEL = 'emr-5.9.0'
-SPARK_SUBMIT_PACKAGES = []
+from settings import *
 
 
 emr_client = boto3.client('emr')
@@ -29,7 +15,7 @@ def start_cluster(cluster_name, instance_count, master_type, slave_type, src_fol
     src_path = REMOTE_SRC + src_folder
     response = emr_client.run_job_flow(
         Name=cluster_name,
-        LogUri=settings.LOG_URI,
+        LogUri=LOG_URI,
         ReleaseLabel=EMR_RELEASE_LABEL,
         Instances={
             'MasterInstanceType': master_type,
@@ -56,7 +42,7 @@ def start_cluster(cluster_name, instance_count, master_type, slave_type, src_fol
                 'Name': 'Config PySpark Runtime',
                 'ScriptBootstrapAction': {
                     'Path': src_path + 'config/sync_node.sh',
-                    'Args': [src_folder],
+                    'Args': [src_folder, BASE_FOLDER],
                 },
             },
             {
@@ -65,7 +51,7 @@ def start_cluster(cluster_name, instance_count, master_type, slave_type, src_fol
                     'Path': 's3://elasticmapreduce/bootstrap-actions/run-if',
                     'Args': [
                         'instance.isMaster=false',
-                        'cat /home/hadoop/pyspark/config/id_rsa.pub >> /home/hadoop/.ssh/authorized_keys',
+                        'cat %sconfig/id_rsa.pub >> /home/hadoop/.ssh/authorized_keys' % LOCAL_SRC,
                     ],
                 },
             },
@@ -153,30 +139,31 @@ def stop_cluster(cluster_id):
 
 
 def start(args):
-    print 'Start an EMR cluster'
+    print('Start an EMR cluster')
     cluster_id = start_cluster(args.cluster_name, args.instance_count, args.master_type, args.slave_type,
                                args.src_folder)
-    print 'Cluster id: %s' % cluster_id
+    print('Cluster id: %s' % cluster_id)
 
 
 def step(args):
-    print 'Add PySpark step (%s) to EMR cluster %s' % (args.job_file, args.cluster_id)
+    print('Add PySpark step (%s) to EMR cluster %s' % (args.job_file, args.cluster_id))
     step_ids = add_pyspark_step_to_cluster(args.cluster_id, args.job_file, args.argument)
-    print 'Step ids: %s' % step_ids
+    print('Step ids: %s' % step_ids)
 
 
 def stop(args):
-    print 'Stop EMR cluster %s' % args.cluster_id
+    print('Stop EMR cluster %s' % args.cluster_id)
     response = stop_cluster(args.cluster_id)
-    print response
+    print(response)
 
 
 def push(args):
     destination = REMOTE_SRC + args.src_folder
-    print 'Push code to %s' % destination
+    print('Push code to %s' % destination)
     call(['aws', 's3', 'sync', '--delete', '.', destination])
     if args.cluster_id:
-        add_script_step_to_cluster(args.cluster_id, LOCAL_SRC + '/config/sync_cluster.sh', [args.src_folder])
+        add_script_step_to_cluster(args.cluster_id, LOCAL_SRC + 'config/sync_cluster.sh',
+                                   [args.src_folder, BASE_FOLDER])
 
 
 def main():
